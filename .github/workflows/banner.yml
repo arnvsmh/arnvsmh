@@ -1,0 +1,42 @@
+name: banner
+
+# Rebuilds the banner and runs the test suite. The reproducibility test fails
+# if assets/ was edited by hand without re-running the generator, so the SVGs
+# in the repo can never drift from tools/build_banner.py.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "tools/**"
+      - "assets/**"
+      - "README.md"
+      - ".github/workflows/banner.yml"
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Rebuild banner
+        run: python3 tools/build_banner.py
+
+      - name: Fail if assets are stale
+        run: |
+          if ! git diff --quiet -- assets/; then
+            echo "::error::assets/ differs from the generator output."
+            echo "Run 'python3 tools/build_banner.py' and commit the result."
+            git --no-pager diff --stat -- assets/
+            exit 1
+          fi
+
+      - name: Run tests
+        run: python3 tools/test_banner.py

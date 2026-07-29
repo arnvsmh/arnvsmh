@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>banner preview</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    margin: 0;
+    font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    background: #010409;
+    color: #7d8590;
+  }
+  header {
+    padding: 20px 32px;
+    border-bottom: 1px solid #21262d;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+  }
+  button {
+    font: inherit;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    background: transparent;
+    color: #7d8590;
+    border: 1px solid #30363d;
+    border-radius: 4px;
+    padding: 5px 12px;
+    cursor: pointer;
+  }
+  button:hover, button:focus-visible { border-color: #00d2be; color: #00d2be; }
+  .stage { padding: 40px 32px 64px; }
+  .frame {
+    max-width: 920px;             /* ≈ the real README column width */
+    margin: 0 auto 48px;
+    padding: 24px;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    background: #0d1117;
+  }
+  .frame.light { background: #ffffff; border-color: #d1d9e0; }
+  .frame img { display: block; width: 100%; }
+  .label { margin: 0 auto 10px; max-width: 920px; letter-spacing: 2px; }
+  .note { max-width: 920px; margin: 0 auto; opacity: .7; }
+  .narrow .frame { max-width: 380px; }   /* mobile column */
+</style>
+</head>
+<body>
+<header>
+  <span style="color:#00d2be">▲ banner preview</span>
+  <button id="reload">reload</button>
+  <button id="width">toggle mobile width</button>
+  <span class="note">both variants render side by side — GitHub picks one via prefers-color-scheme</span>
+</header>
+
+<div class="stage" id="stage">
+  <p class="label">dark</p>
+  <div class="frame">
+    <img id="d" alt="dark banner" src="../assets/banner-dark.svg">
+  </div>
+
+  <p class="label">light</p>
+  <div class="frame light">
+    <img id="l" alt="light banner" src="../assets/banner-light.svg">
+  </div>
+</div>
+
+<script>
+  const bust = () => {
+    const t = Date.now();
+    d.src = '../assets/banner-dark.svg?' + t;
+    l.src = '../assets/banner-light.svg?' + t;
+  };
+  document.getElementById('reload').onclick = bust;
+  document.getElementById('width').onclick = () =>
+    document.getElementById('stage').classList.toggle('narrow');
+</script>
+</body>
+</html>

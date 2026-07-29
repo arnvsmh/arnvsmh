@@ -1,1 +1,46 @@
+name: snake
 
+# Renders the contribution graph as a snake animation and publishes it to the
+# `output` branch, which the README reads from. Colours are matched to the
+# banner palette so the two don't fight each other.
+#
+# Requires: this repository is public, and Settings → Actions → General →
+# Workflow permissions is set to "Read and write permissions".
+
+on:
+  schedule:
+    - cron: "17 3 * * *"   # daily, off the hour so it isn't queued with everyone else
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: snake
+  cancel-in-progress: true
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Generate snake animations
+        uses: Platane/snk/svg-only@v3
+        with:
+          github_user_name: ${{ github.repository_owner }}
+          outputs: |
+            dist/snake.svg?color_snake=#009D8C&color_dots=#EDEFEF,#B8E8E2,#6ED3C6,#12A895,#00695E
+            dist/snake-dark.svg?color_snake=#00D2BE&color_dots=#0A0E10,#0B3D38,#0F7A6F,#00B8A6,#5CF5E2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish to the output branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: output
+          commit_message: "chore: refresh contribution snake [skip ci]"

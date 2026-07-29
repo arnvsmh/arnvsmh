@@ -1,108 +1,90 @@
 <div align="center">
 
-# ARNAV SIMHA
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
+  <img alt="Arnav Simha — machine learning, computational physics, molecular intelligence, CFD" src="assets/banner-dark.svg" width="100%">
+</picture>
 
-### Machine Learning • Computational Physics • Molecular Intelligence
+<br>
 
-<p>
-Building machine learning systems for scientific discovery.
-</p>
-
-<p>
-<a href="https://github.com/arnvsmh">GitHub</a> •
-<a href="https://x.com/">X</a> •
-<a href="https://www.linkedin.com/">LinkedIn</a>
-</p>
-
-<img src="assets/banner.svg" width="100%">
+<a href="https://x.com/arnvsmh"><img alt="X" src="https://img.shields.io/badge/X-0A0E10?style=flat-square&logo=x&logoColor=00D2BE"></a>
+<a href="https://www.linkedin.com/in/arnav-simha/"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-0A0E10?style=flat-square&logo=linkedin&logoColor=00D2BE"></a>
+<a href="https://github.com/arnvsmh"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-0A0E10?style=flat-square&logo=github&logoColor=00D2BE"></a>
 
 </div>
 
----
+<br>
 
-# About
+I build machine learning systems for scientific computing — models that have to respect
+physics, not just fit data. Most of my work sits where numerical simulation is too slow and
+pure deep learning is too unconstrained: turbulence reconstruction, physics-informed
+networks, and molecular reasoning.
 
-I'm interested in developing machine learning systems that push scientific computing forward. My work focuses on computational fluid dynamics, physics-informed neural networks, molecular intelligence, and high-performance AI.
+Currently: writing up **LIFT-550**, and building **[Ryniant](https://ryniant.com)** — AI
+retrosynthesis planning for pharmaceutical CROs.
 
----
+<br>
 
-# Current Focus
+## Work
 
-- Physics-Informed Neural Networks (PINNs)
-- Turbulence Reconstruction
-- Scientific Machine Learning
-- CUDA & High-Performance Computing
-- Molecular Intelligence
+| | |
+|---|---|
+| **LIFT-550** | Physics-informed super-resolution for turbulence fields. First-author paper; the result is that the *training objective*, not the architecture, governs how much fine scale a model recovers. In submission — SC26 AI4S Workshop (IEEE). |
+| **Ryniant** | Retrosynthesis route planning for pharma CROs: search over reaction graphs, GNN success scoring, and an equipment/inventory feasibility layer on top. |
+| **Scientific ML** | Reproducible implementations and experiments from the above. Releasing as the papers clear. |
 
----
+> Public repositories are being prepared for release.
 
-# Selected Work
+<br>
 
-> 🚧 Public repositories coming soon.
+## Focus
 
-Projects currently being prepared for release:
+- **Physics-informed neural networks** — embedding conservation laws and boundary conditions into the loss
+- **Turbulence reconstruction** — super-resolution and spectral fidelity across scales
+- **Molecular intelligence** — retrosynthesis search, reaction prediction, GNNs over chemical graphs
+- **High-performance computing** — CUDA, mixed precision, and getting training throughput out of real hardware
 
-| Project | Description |
-|----------|-------------|
-| **LIFT** | Physics-informed neural networks for turbulence reconstruction |
-| **Scientific AI** | Machine learning for computational science |
-| **Research** | Publications, experiments, and reproducible implementations |
+<br>
 
----
+## Stack
 
-# Tech
+| | |
+|---|---|
+| **Languages** | Python · C++ · CUDA · SQL |
+| **ML** | PyTorch · NumPy · SciPy · scikit-learn |
+| **Scientific** | matplotlib · pandas · RDKit · OpenFOAM |
+| **Infrastructure** | Docker · Git · Linux · GCP |
 
-<table>
-<tr>
-<td>
+<br>
 
-### Languages
-
-- Python
-- C++
-- SQL
-
-</td>
-
-<td>
-
-### Frameworks
-
-- PyTorch
-- NumPy
-- Docker
-
-</td>
-
-<td>
-
-### Interests
-
-- CFD
-- Machine Learning
-- HPC
-- Scientific AI
-
-</td>
-</tr>
-</table>
-
----
-
-# GitHub Stats
+## Activity
 
 <div align="center">
 
-<img height="170" src="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=ffffff&text_color=bbbbbb&icon_color=4EA1FF">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8&icon_color=00D2BE&rank_icon=github">
+  <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=009D8C&text_color=4E585C&icon_color=009D8C&rank_icon=github">
+  <img alt="GitHub stats" height="165" src="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8&icon_color=00D2BE&rank_icon=github">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&langs_count=8&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8">
+  <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&langs_count=8&bg_color=00000000&title_color=009D8C&text_color=4E585C">
+  <img alt="Top languages" height="165" src="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&langs_count=8&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8">
+</picture>
 
-<img height="170" src="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&bg_color=00000000&title_color=ffffff&text_color=bbbbbb">
+<br><br>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arnvsmh/arnvsmh/output/snake-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/arnvsmh/arnvsmh/output/snake.svg">
+  <img alt="Contribution graph" src="https://raw.githubusercontent.com/arnvsmh/arnvsmh/output/snake-dark.svg">
+</picture>
 
 </div>
 
----
+<br>
 
 <div align="center">
-
-*"Research. Build. Iterate."*
-
+<sub><code>research → simulation → discovery</code></sub>
 </div>
