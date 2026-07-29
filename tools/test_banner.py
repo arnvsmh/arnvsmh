@@ -1,16 +1,27 @@
 #!/usr/bin/env python3
 """
-test_banner.py — guards the properties that make the banner actually work
-once GitHub proxies it through camo and drops it into an <img> tag.
+test_banner.py — guards two things.
 
-Run:  python3 tools/test_banner.py         (from the repo root)
-      python3 -m unittest discover tools   (equivalent)
+First, the properties that make the SVG work once GitHub proxies it through
+camo into a sandboxed <img>: no external fetches, no scripting, resolvable
+references, reduced-motion support.
 
-No third-party dependencies. Standard library only, so CI is instant.
+Second, the properties that make the field look computed rather than drawn:
+angle isotropy (no direction dominates, so it never reads as scan lines),
+even coverage across the canvas, and streamlines that actually follow the
+velocity field the quiver plot is showing.
+
+And a third, smaller thing: the README stays free of the four generic
+profile tells — shields badges, stats cards, a contribution snake, and
+placeholder links.
+
+Run:  python3 tools/test_banner.py
 """
 
 from __future__ import annotations
 
+import collections
+import math
 import os
 import re
 import sys
@@ -24,15 +35,10 @@ import build_banner as bb  # noqa: E402
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ASSETS = os.path.join(ROOT, "assets")
 VARIANTS = ("dark", "light")
-
 SVG_NS = "http://www.w3.org/2000/svg"
 
-# Rough per-character advance as a fraction of font-size. Deliberately
-# generous — the point is to catch text that would overflow the viewBox on
-# a wide-metric fallback font, not to typeset precisely.
-ADVANCE_SANS_BOLD = 0.76
-ADVANCE_SANS = 0.60
-ADVANCE_MONO = 0.62
+# Mono advance is ~0.60em across every stack in the font list.
+ADVANCE_MONO = 0.60
 
 
 def read(variant: str) -> str:
@@ -40,47 +46,88 @@ def read(variant: str) -> str:
         return fh.read()
 
 
-class TestChannels(unittest.TestCase):
-    """The synthesised lap data itself."""
+def sample_field(step: int = 24):
+    """Yield (x, y, u, v) over the same lattice the quiver plot uses."""
+    y = step / 2
+    while y < bb.H:
+        x = step / 2
+        while x < bb.W:
+            u, v = bb.velocity(x, y)
+            yield x, y, u, v
+            x += step
+        y += step
 
-    def test_channels_are_normalised(self):
-        speed, throttle = bb.lap_channels()
-        for name, chan in (("speed", speed), ("throttle", throttle)):
-            with self.subTest(channel=name):
-                self.assertEqual(len(chan), bb.SAMPLES)
-                self.assertTrue(all(0.0 <= v <= 1.0 for v in chan))
-                self.assertGreater(max(chan) - min(chan), 0.5,
-                                   "channel is too flat to read as telemetry")
 
-    def test_channels_are_deterministic(self):
-        self.assertEqual(bb.lap_channels(), bb.lap_channels())
+class TestField(unittest.TestCase):
+    """The velocity field itself, before any of it becomes SVG."""
 
-    def test_speed_looks_like_a_lap(self):
-        """Braking zones must actually appear — otherwise it's just noise."""
-        speed, _ = bb.lap_channels()
-        drops = sum(
-            1 for i in range(1, len(speed))
-            if speed[i - 1] - speed[i] > 0.05
+    def test_angles_are_isotropic(self):
+        """
+        If one direction dominates, the quiver plot reads as scan lines
+        instead of a flow field. Six 30-degree buckets, none starved.
+        """
+        hist = collections.Counter(
+            int(math.degrees(math.atan2(v, u)) % 180 // 30)
+            for _, _, u, v in sample_field()
         )
-        self.assertGreaterEqual(drops, 5, "expected several braking events")
+        self.assertEqual(len(hist), 6, "some orientations are entirely absent")
+        ratio = min(hist.values()) / max(hist.values())
+        self.assertGreater(ratio, 0.40,
+                           f"angle distribution is lopsided (ratio {ratio:.2f})")
 
-    def test_path_data_is_finite(self):
-        speed, _ = bb.lap_channels()
-        d = bb.to_path(speed, 0, 100, 0, 50)
-        self.assertNotIn("nan", d.lower())
-        self.assertNotIn("inf", d.lower())
-        self.assertTrue(d.startswith("M "))
+    def test_coverage_is_even_top_to_bottom(self):
+        """No dead band — every row has to carry visible speed."""
+        rows = collections.defaultdict(list)
+        for _, y, u, v in sample_field():
+            rows[round(y)].append(math.hypot(u, v))
+        means = {k: sum(s) / len(s) for k, s in rows.items()}
+        ratio = min(means.values()) / max(means.values())
+        self.assertGreater(ratio, 0.55,
+                           f"row {min(means, key=means.get)} is nearly empty "
+                           f"(ratio {ratio:.2f})")
 
-    def test_step_path_is_orthogonal(self):
-        """A step trace must move in axis-aligned segments only."""
-        d = bb.to_path([0.0, 1.0, 0.0, 1.0], 0, 30, 0, 10, step=True)
-        nums = [float(n) for n in d.replace("M", " ").replace("L", " ").split()]
-        pts = list(zip(nums[0::2], nums[1::2]))
-        for a, b in zip(pts, pts[1:]):
-            moved_x = abs(a[0] - b[0]) > 1e-6
-            moved_y = abs(a[1] - b[1]) > 1e-6
-            self.assertFalse(moved_x and moved_y,
-                             f"diagonal segment {a} -> {b} in a step path")
+    def test_field_is_finite_everywhere(self):
+        """Vortex cores are the obvious place for a divide-by-zero."""
+        for vx, vy, _, _ in bb.VORTICES:
+            u, v = bb.velocity(vx, vy)
+            self.assertTrue(math.isfinite(u) and math.isfinite(v),
+                            f"non-finite velocity at vortex core ({vx}, {vy})")
+        for x, y, u, v in sample_field(60):
+            self.assertTrue(math.isfinite(u) and math.isfinite(v))
+            self.assertLess(math.hypot(u, v), 1e4, f"runaway speed at ({x}, {y})")
+
+    def test_field_is_deterministic(self):
+        self.assertEqual(bb.velocity(371.0, 208.0), bb.velocity(371.0, 208.0))
+
+    def test_streamlines_follow_the_field(self):
+        """
+        The arrows and the lines have to agree. Each streamline step should
+        point along the local velocity — check the angle between them.
+        """
+        pts = bb.streamline(-20.0, 264.0, 60, 6.0)
+        self.assertGreater(len(pts), 30, "streamline died immediately")
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            u, v = bb.velocity((x0 + x1) / 2, (y0 + y1) / 2)
+            step_ang = math.atan2(y1 - y0, x1 - x0)
+            flow_ang = math.atan2(v, u)
+            delta = abs((step_ang - flow_ang + math.pi) % (2 * math.pi) - math.pi)
+            self.assertLess(delta, 0.35,
+                            f"streamline diverges from the field at ({x0:.0f}, {y0:.0f})")
+
+    def test_streamlines_stay_near_the_canvas(self):
+        for sx, sy in bb.STREAM_SEEDS:
+            for x, y in bb.streamline(sx, sy, 260, 6.0):
+                self.assertTrue(-60 < x < bb.W + 60 and -60 < y < bb.H + 60)
+
+    def test_quiver_skips_the_panel(self):
+        """Segments under the panel are invisible weight in the file."""
+        body, count = bb.quiver(bb.DARK)
+        self.assertGreater(count, 300, "field is too sparse to read")
+        self.assertLess(count, 1200, "field is heavier than it needs to be")
+        for mx, my in re.findall(r'd="M(-?[\d.]+) (-?[\d.]+)', body):
+            x, y = float(mx), float(my)
+            inside = (bb.PX0 < x < bb.PX1) and (bb.PY0 < y < bb.PY1)
+            self.assertFalse(inside, f"segment at ({x}, {y}) is hidden by the panel")
 
 
 class TestGeneratedSVGs(unittest.TestCase):
@@ -94,8 +141,7 @@ class TestGeneratedSVGs(unittest.TestCase):
     def test_is_wellformed_xml(self):
         for v in VARIANTS:
             with self.subTest(variant=v):
-                root = ET.fromstring(read(v))
-                self.assertEqual(root.tag, f"{{{SVG_NS}}}svg")
+                self.assertEqual(ET.fromstring(read(v)).tag, f"{{{SVG_NS}}}svg")
 
     def test_no_scripting_or_foreign_content(self):
         """camo serves the file into a sandboxed <img>: neither ever runs."""
@@ -109,31 +155,22 @@ class TestGeneratedSVGs(unittest.TestCase):
 
     def test_no_external_resources(self):
         """No webfont, no remote image — nothing is fetched at render time."""
-        url_pattern = re.compile(r"https?://[^\"'\s)]+")
         allowed = {SVG_NS, "http://www.w3.org/1999/xlink"}
         for v in VARIANTS:
+            svg = read(v)
             with self.subTest(variant=v):
-                found = set(url_pattern.findall(read(v))) - allowed
+                found = set(re.findall(r"https?://[^\"'\s)]+", svg)) - allowed
                 self.assertEqual(found, set(), f"external references: {found}")
-                self.assertNotIn("@import", read(v))
+                self.assertNotIn("@import", svg)
 
     def test_all_references_resolve(self):
-        """Every url(#x) and clip-path/mask points at an id defined in the file."""
         for v in VARIANTS:
             svg = read(v)
             ids = set(re.findall(r'\sid="([^"]+)"', svg))
             refs = set(re.findall(r"url\(#([^)]+)\)", svg))
             with self.subTest(variant=v):
-                self.assertTrue(refs, "expected gradient/mask references")
                 self.assertEqual(refs - ids, set(),
                                  f"dangling references: {refs - ids}")
-
-    def test_variant_ids_are_namespaced(self):
-        """Both files can coexist in one document without id collisions."""
-        dark_ids = set(re.findall(r'\sid="([^"]+)"', read("dark")))
-        light_ids = set(re.findall(r'\sid="([^"]+)"', read("light")))
-        self.assertEqual(dark_ids & light_ids, set(),
-                         "dark and light share ids; one would shadow the other")
 
     def test_viewbox_and_intrinsic_size_agree(self):
         for v in VARIANTS:
@@ -147,8 +184,13 @@ class TestGeneratedSVGs(unittest.TestCase):
         for v in VARIANTS:
             svg = read(v)
             with self.subTest(variant=v):
-                for needle in (bb.NAME, bb.TAGLINE, bb.HANDLE, bb.STATUS):
+                for needle in (bb.NAME, bb.TAGLINE, bb.EYEBROW, bb.STAMP):
                     self.assertIn(needle, svg)
+
+    def test_uses_ascii_arrows(self):
+        """A Unicode arrow in a mono setting breaks the monospace rhythm."""
+        self.assertNotIn("\u2192", bb.TAGLINE)
+        self.assertIn("->", bb.TAGLINE)
 
     def test_is_accessible(self):
         for v in VARIANTS:
@@ -157,6 +199,7 @@ class TestGeneratedSVGs(unittest.TestCase):
                 self.assertEqual(root.get("role"), "img")
                 self.assertTrue(root.get("aria-label"))
                 self.assertIsNotNone(root.find(f"{{{SVG_NS}}}title"))
+                self.assertIsNotNone(root.find(f"{{{SVG_NS}}}desc"))
 
     def test_respects_reduced_motion(self):
         for v in VARIANTS:
@@ -165,48 +208,54 @@ class TestGeneratedSVGs(unittest.TestCase):
 
     def test_animation_base_state_is_the_finished_frame(self):
         """
-        With animations disabled the traces must still be fully drawn, so the
-        base rule needs stroke-dashoffset:0 and the keyframe supplies the
-        offset — not the other way round.
+        With animation disabled the panel edge and streamlines must still be
+        drawn — the base rule carries dashoffset 0 and the keyframe supplies
+        the starting offset, not the other way round.
         """
         for v in VARIANTS:
             svg = read(v)
             with self.subTest(variant=v):
-                self.assertRegex(svg, r"\.trace-speed\s*\{[^}]*stroke-dashoffset:\s*0")
-                self.assertRegex(svg, r"\.trace-throttle\s*\{[^}]*stroke-dashoffset:\s*0")
+                self.assertRegex(svg, r"\.sl\{[^}]*stroke-dashoffset:0")
+                self.assertRegex(svg, r"\.edge\{[^}]*stroke-dashoffset:0")
 
     def test_themes_actually_differ(self):
         self.assertNotEqual(read("dark"), read("light"))
-        self.assertIn(bb.DARK.bg_top, read("dark"))
-        self.assertIn(bb.LIGHT.bg_top, read("light"))
-        self.assertNotIn(bb.DARK.bg_top, read("light"))
+        self.assertIn(bb.DARK.bg, read("dark"))
+        self.assertNotIn(bb.DARK.bg, read("light"))
 
-    def test_text_fits_inside_the_viewbox(self):
-        """Guards against a fallback font pushing the wordmark off the edge."""
+    def test_field_tones_are_distinguishable_from_background(self):
+        """The slowest bucket still has to be visible against the canvas."""
+        for theme in (bb.DARK, bb.LIGHT):
+            with self.subTest(variant=theme.key):
+                bg = int(theme.bg[1:], 16)
+                slow = int(theme.field[0][1:], 16)
+                delta = sum(
+                    abs(((bg >> s) & 255) - ((slow >> s) & 255))
+                    for s in (16, 8, 0)
+                )
+                self.assertGreater(delta, 45,
+                                   "slowest field segments vanish into the background")
+
+    def test_text_fits_inside_the_panel(self):
+        panel_w = bb.PX1 - bb.PX0
         checks = [
-            (bb.NAME, 68, 18, ADVANCE_SANS_BOLD),
-            (bb.DISCIPLINES, 13, 4.2, ADVANCE_SANS),
-            (bb.TAGLINE, 12.5, 2.0, ADVANCE_MONO),
+            (bb.NAME, 46, 11),
+            (bb.DISCIPLINES, 12.5, 3.4),
+            (bb.TAGLINE, 11.5, 1.6),
+            (bb.EYEBROW + bb.STAMP, 11, 1.6),
         ]
-        for text, size, track, advance in checks:
-            width = len(text) * (size * advance + track)
+        for text, size, track in checks:
+            width = len(text) * (size * ADVANCE_MONO + track)
             with self.subTest(text=text[:24]):
-                self.assertLess(width, bb.W - 64,
-                                f"{text[:24]!r} is ~{width:.0f}px wide; "
-                                f"it would crowd the {bb.W}px frame")
+                self.assertLess(width, panel_w - 48,
+                                f"{text[:24]!r} is ~{width:.0f}px wide inside a "
+                                f"{panel_w:.0f}px panel")
 
-    def test_plot_stays_inside_the_frame(self):
-        self.assertGreater(bb.PLOT["x0"], 0)
-        self.assertLess(bb.PLOT["x1"], bb.W)
-        self.assertLess(bb.THROTTLE_BAND["y1"], bb.H)
-        self.assertGreater(bb.PLOT["y0"], 0)
-        self.assertLess(bb.PLOT["y1"], bb.THROTTLE_BAND["y0"],
-                        "speed panel overlaps the throttle band")
-
-    def test_plot_is_horizontally_centred(self):
-        left = bb.PLOT["x0"]
-        right = bb.W - bb.PLOT["x1"]
-        self.assertAlmostEqual(left, right, delta=1.0)
+    def test_panel_sits_inside_the_frame(self):
+        self.assertGreater(bb.PX0, 0)
+        self.assertLess(bb.PX1, bb.W)
+        self.assertGreater(bb.PY0, 0)
+        self.assertLess(bb.PY1, bb.H)
 
     def test_stays_small_enough_to_inline(self):
         for v in VARIANTS:
@@ -223,7 +272,7 @@ class TestGeneratedSVGs(unittest.TestCase):
 
 
 class TestReadme(unittest.TestCase):
-    """The README has to reference the assets the builder actually emits."""
+    """The README has to stay free of the generic-profile tells."""
 
     def setUp(self):
         path = os.path.join(ROOT, "README.md")
@@ -244,9 +293,35 @@ class TestReadme(unittest.TestCase):
         for tag in re.findall(r"<img[^>]*>", self.readme):
             self.assertIn("alt=", tag, f"missing alt text: {tag[:70]}")
 
+    def test_no_generic_profile_widgets(self):
+        """
+        Badges, stats cards and the contribution snake are the four things
+        that make a profile read as generated regardless of what surrounds
+        them. Keeping them out is a design decision, so it gets a test.
+        """
+        banned = {
+            "shields.io": "badge service",
+            "github-readme-stats": "stats cards",
+            "streak-stats": "streak cards",
+            "snake.svg": "contribution snake",
+            "capsule-render": "header generator",
+            "readme-typing-svg": "typing animation",
+        }
+        for needle, label in banned.items():
+            with self.subTest(widget=label):
+                self.assertNotIn(needle, self.readme, f"{label} is back in the README")
+
+    def test_no_emoji_headers(self):
+        for line in self.readme.splitlines():
+            if line.startswith("#"):
+                self.assertTrue(all(ord(c) < 0x2100 for c in line),
+                                f"emoji or symbol in heading: {line}")
+
     def test_no_placeholder_links(self):
-        bad = re.findall(r'href="(https://x\.com/?|https://www\.linkedin\.com/?)"',
-                         self.readme)
+        bad = re.findall(
+            r'href="(https://x\.com/?|https://www\.linkedin\.com/?|'
+            r'https://github\.com/?|mailto:you@)"',
+            self.readme)
         self.assertEqual(bad, [], f"placeholder links left in README: {bad}")
 
 

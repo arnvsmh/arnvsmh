@@ -1,24 +1,25 @@
 #!/usr/bin/env python3
 """
-build_banner.py — generates the animated telemetry banner for the arnvsmh
-GitHub profile README.
+build_banner.py — generates the banner for the arnvsmh GitHub profile.
 
-Design brief: Mercedes-AMG F1 pit-wall telemetry. Carbon black, Petronas
-teal, brushed silver. The signature element is a real lap trace (speed +
-throttle channels) plotted under the wordmark, with a scanning readout
-cursor — the same picture an engineer stares at on a Saturday.
+Design brief: the banner is a quiver plot of a two-dimensional turbulent
+velocity field — the same kind of figure that comes out of the LIFT-550
+work — with streamlines integrated through it and a hairline panel floating
+over the top. The field is the subject, computed rather than drawn.
 
-Hard constraints (these are what make it actually work on GitHub):
-  * No <script>, no <foreignObject>, no external URLs. GitHub serves
-    README images through the camo proxy inside an <img> tag, which is a
-    sandboxed, non-scripting context. Anything fetched at render time
-    silently fails.
-  * No webfonts for the same reason — the type personality has to come
-    from system stacks + tracking + weight contrast.
-  * Animation is CSS-only (not SMIL) so that
-    @media (prefers-reduced-motion: reduce) can switch it off. Every
-    animated element's *base* style is its final resting state, so the
-    reduced-motion render is the finished frame, not a blank one.
+The field is a superposition of Lamb-Oseen vortices on a shear profile.
+Segment angle is the local velocity direction; segment length and tone track
+local speed. Streamlines are RK2 integrations through the same field, so the
+arrows and the lines can't disagree with each other.
+
+Hard constraints (these are what make it work on GitHub):
+  * No <script>, no <foreignObject>, no external URLs. GitHub serves README
+    images through the camo proxy inside a sandboxed <img>. Anything fetched
+    at render time silently fails — including webfonts, which is why the type
+    is a system mono stack carrying its personality through tracking alone.
+  * Animation is CSS, not SMIL, so @media (prefers-reduced-motion: reduce)
+    can switch it off. Every animated element's base style is its finished
+    state, so the reduced-motion render is the completed frame.
 
 Usage:
     python3 tools/build_banner.py            # writes assets/*.svg
@@ -37,12 +38,15 @@ from dataclasses import dataclass
 # ---------------------------------------------------------------------------
 
 NAME = "ARNAV SIMHA"
-DISCIPLINES = "MACHINE LEARNING  ·  COMPUTATIONAL PHYSICS  ·  MOLECULAR INTELLIGENCE  ·  CFD"
-TAGLINE = "research \u2192 simulation \u2192 discovery"
-HANDLE = "@arnvsmh"
-STATUS = "TELEMETRY \u00b7 LIVE"
+DISCIPLINES = "MACHINE LEARNING / COMPUTATIONAL PHYSICS / MOLECULAR INTELLIGENCE"
+TAGLINE = "research -> simulation -> discovery"
+EYEBROW = "// FLOW RECONSTRUCTED"
+STAMP = "RE_TAU 550 / DNS"
 
-W, H = 1200, 340
+W, H = 1200, 420
+
+# Panel geometry — the inset the type sits inside.
+PX0, PY0, PX1, PY1 = 180.0, 112.0, 1020.0, 308.0
 
 # ---------------------------------------------------------------------------
 # Palettes
@@ -52,368 +56,241 @@ W, H = 1200, 340
 @dataclass(frozen=True)
 class Theme:
     key: str
-    bg_top: str
-    bg_bottom: str
-    ink: str          # wordmark
-    ink_soft: str     # subtitle
-    ink_faint: str    # hairlines, grid
-    accent: str       # petronas teal
-    accent_hi: str    # brighter teal for the highlight pass
-    shine: str        # sweep highlight over the wordmark
-    trace_2: str      # secondary channel (throttle)
+    bg: str
+    field: tuple[str, str, str, str]  # slowest -> fastest
+    accent: str                       # streamlines
+    panel: str
+    panel_edge: str
+    ink: str
+    ink_soft: str
+    ink_faint: str
 
 
 DARK = Theme(
     key="dark",
-    bg_top="#0A0E10",
-    bg_bottom="#05080A",
-    ink="#E9EDEE",
-    ink_soft="#9AA4A8",
-    ink_faint="#20282B",
+    bg="#080B0C",
+    field=("#2A3436", "#3B4749", "#51605F", "#11897E"),
     accent="#00D2BE",
-    accent_hi="#5CF5E2",
-    shine="#FFFFFF",
-    trace_2="#828C90",
+    panel="#070A0B",
+    panel_edge="#1E2729",
+    ink="#E7EBEC",
+    ink_soft="#8C979B",
+    ink_faint="#5C6669",
 )
 
 LIGHT = Theme(
     key="light",
-    bg_top="#F7F8F8",
-    bg_bottom="#EDEFEF",
-    ink="#0B0F10",
-    ink_soft="#4E585C",
-    ink_faint="#CFD5D6",
-    accent="#009D8C",
-    accent_hi="#00C6B1",
-    shine="#00D2BE",
-    trace_2="#8C9599",
+    bg="#FAFBFB",
+    field=("#D3D9DA", "#B4BEC0", "#93A0A2", "#4FAFA5"),
+    accent="#00998A",
+    panel="#FFFFFF",
+    panel_edge="#DCE2E3",
+    ink="#0A0E0F",
+    ink_soft="#4B5457",
+    ink_faint="#7C8588",
 )
 
 # ---------------------------------------------------------------------------
-# Telemetry channel synthesis
+# Velocity field
 # ---------------------------------------------------------------------------
 
-# A lap, described as segments: (length_units, kind).
-#   'straight'  full throttle, speed climbs toward v_max
-#   'brake'     speed collapses
-#   'corner'    speed held low, partial throttle
-#   'exit'      speed climbs off the apex
-LAP = [
-    (7, "straight"), (2, "brake"), (3, "corner"), (4, "exit"),
-    (5, "straight"), (2, "brake"), (2, "corner"), (3, "exit"),
-    (9, "straight"), (3, "brake"), (4, "corner"), (5, "exit"),
-    (4, "straight"), (2, "brake"), (3, "corner"), (6, "exit"),
-    (8, "straight"), (2, "brake"), (2, "corner"), (4, "exit"),
+# (x, y, circulation, core radius). Alternating signs on a blue-noise
+# placement, some seeded off-canvas so the structure runs past the edges
+# rather than stopping at them. Chosen by searching layouts for two
+# properties: an isotropic angle distribution (no direction dominates, so
+# the field never reads as scan lines) and even speed coverage top to
+# bottom (no dead band at the walls).
+VORTICES = [
+    (1231.0, 222.8, -6812.7, 78.7),
+    (344.3, 91.2, 5214.1, 74.9),
+    (354.5, 298.0, -6003.5, 90.6),
+    (789.1, -14.7, 5806.7, 71.2),
+    (1125.5, 53.6, -8015.0, 90.8),
+    (78.3, 459.5, 5786.8, 87.8),
+    (181.7, 334.1, -5563.6, 65.0),
+    (550.4, 209.0, 8302.8, 58.1),
+    (3.8, 321.0, -8710.4, 99.4),
+    (991.0, 443.0, 7814.1, 71.9),
+    (166.4, 89.0, -7909.4, 90.7),
+    (1003.5, 157.7, 7901.9, 68.9),
+    (-6.4, 140.1, -5370.2, 101.1),
+    (713.8, 348.2, 8800.3, 96.1),
 ]
 
-SAMPLES = 320
+SHEAR = 6.0  # gentle mean advection; the vortices carry the structure
 
 
-def lap_channels(n: int = SAMPLES) -> tuple[list[float], list[float]]:
-    """Return (speed, throttle) each normalised 0..1, sampled n times."""
-    total = sum(seg for seg, _ in LAP)
-    speed: list[float] = []
-    throttle: list[float] = []
+def velocity(x: float, y: float) -> tuple[float, float]:
+    """Lamb-Oseen vortices superposed on a shear profile."""
+    u = SHEAR
+    v = 0.0
 
-    v = 0.55
-    for i in range(n):
-        # locate the segment this sample falls in
-        pos = (i / n) * total
-        acc = 0.0
-        kind = "straight"
-        local = 0.0
-        seg_len = 1.0
-        for seg, k in LAP:
-            if pos < acc + seg:
-                kind, local, seg_len = k, pos - acc, float(seg)
-                break
-            acc += seg
-        t = local / seg_len
+    for vx, vy, gamma, core in VORTICES:
+        dx, dy = x - vx, y - vy
+        r2 = dx * dx + dy * dy + 1e-6
+        decay = 1.0 - math.exp(-r2 / (core * core))
+        f = gamma * decay / (2.0 * math.pi * r2)
+        u += -f * dy
+        v += f * dx
 
-        if kind == "straight":
-            target, thr = 0.93 + 0.05 * math.sin(t * math.pi), 1.0
-            v += (target - v) * 0.22
-        elif kind == "brake":
-            target, thr = 0.20, 0.0
-            v += (target - v) * 0.45
-        elif kind == "corner":
-            target = 0.24 + 0.06 * math.sin(t * math.pi)
-            thr = 0.18 + 0.25 * t
-            v += (target - v) * 0.30
-        else:  # exit
-            target, thr = 0.55 + 0.42 * t, min(1.0, 0.45 + 1.2 * t)
-            v += (target - v) * 0.26
-
-        # engine/sensor jitter — deterministic, no RNG dependency
-        v_j = v + 0.008 * math.sin(i * 1.9) + 0.005 * math.sin(i * 0.43)
-        speed.append(max(0.0, min(1.0, v_j)))
-        throttle.append(max(0.0, min(1.0, thr)))
-
-    return speed, throttle
+    return u, v
 
 
-def to_path(values: list[float], x0: float, x1: float, y0: float, y1: float,
-            step: bool = False) -> str:
-    """Map a normalised channel onto a plot box and return SVG path data."""
-    n = len(values)
-    pts = []
-    for i, val in enumerate(values):
-        x = x0 + (x1 - x0) * (i / (n - 1))
-        y = y1 - (y1 - y0) * val
+def speed_range(step: int) -> tuple[float, float]:
+    """Sample the field so tone buckets key to the real distribution."""
+    speeds = []
+    y = step / 2
+    while y < H:
+        x = step / 2
+        while x < W:
+            u, v = velocity(x, y)
+            speeds.append(math.hypot(u, v))
+            x += step
+        y += step
+    speeds.sort()
+    return speeds[len(speeds) // 20], speeds[len(speeds) * 19 // 20]
+
+
+def streamline(x: float, y: float, steps: int, h: float) -> list[tuple[float, float]]:
+    """RK2 integration through the same field the quiver plot draws."""
+    pts = [(x, y)]
+    for _ in range(steps):
+        u1, v1 = velocity(x, y)
+        s1 = math.hypot(u1, v1) + 1e-9
+        mx, my = x + h * u1 / s1 * 0.5, y + h * v1 / s1 * 0.5
+        u2, v2 = velocity(mx, my)
+        s2 = math.hypot(u2, v2) + 1e-9
+        x, y = x + h * u2 / s2, y + h * v2 / s2
+        if not (-40 < x < W + 40 and -40 < y < H + 40):
+            break
         pts.append((x, y))
-
-    d = [f"M {pts[0][0]:.2f} {pts[0][1]:.2f}"]
-    if step:
-        prev_y = pts[0][1]
-        for x, y in pts[1:]:
-            if abs(y - prev_y) > 0.01:
-                d.append(f"L {x:.2f} {prev_y:.2f}")
-            d.append(f"L {x:.2f} {y:.2f}")
-            prev_y = y
-    else:
-        for x, y in pts[1:]:
-            d.append(f"L {x:.2f} {y:.2f}")
-    return " ".join(d)
+    return pts
 
 
-def path_length(d: str) -> float:
-    """Rough polyline length — enough to seed stroke-dasharray."""
-    nums = d.replace("M", " ").replace("L", " ").split()
-    coords = [(float(nums[i]), float(nums[i + 1])) for i in range(0, len(nums) - 1, 2)]
-    return sum(
-        math.dist(coords[i], coords[i + 1]) for i in range(len(coords) - 1)
-    )
+def polyline(pts: list[tuple[float, float]]) -> str:
+    head = f"M {pts[0][0]:.1f} {pts[0][1]:.1f}"
+    return head + "".join(f" L {x:.1f} {y:.1f}" for x, y in pts[1:])
+
+
+def path_length(pts: list[tuple[float, float]]) -> float:
+    return sum(math.dist(pts[i], pts[i + 1]) for i in range(len(pts) - 1))
 
 
 # ---------------------------------------------------------------------------
 # SVG assembly
 # ---------------------------------------------------------------------------
 
-# Two stacked panels, the way a real telemetry overlay is stacked:
-# speed on top with room to breathe, throttle as a thin binary band below.
-PLOT = dict(x0=152.0, x1=W - 152.0, y0=254.0, y1=300.0)
-THROTTLE_BAND = dict(y0=308.0, y1=320.0)
-LABEL_X = 140.0
+STEP = 24          # quiver grid spacing
+PANEL_PAD = 16.0   # segments this close to the panel are dropped
+
+STREAM_SEEDS = [
+    (-20.0, 132.0), (-20.0, 264.0), (-20.0, 344.0),
+    (240.0, 18.0), (620.0, 404.0), (900.0, 22.0),
+]
+
+
+def quiver(theme: Theme) -> tuple[str, int]:
+    lo, hi = speed_range(STEP * 2)
+    span = max(hi - lo, 1e-6)
+    segments: list[str] = []
+
+    y = STEP / 2
+    while y < H:
+        x = STEP / 2
+        while x < W:
+            # drop anything the panel would cover — saves a third of the file
+            if not (PX0 - PANEL_PAD < x < PX1 + PANEL_PAD
+                    and PY0 - PANEL_PAD < y < PY1 + PANEL_PAD):
+                u, v = velocity(x, y)
+                s = math.hypot(u, v)
+                frac = min(1.0, max(0.0, (s - lo) / span))
+                bucket = min(3, int(frac * 4))
+                length = 8.0 + 8.0 * frac
+                ux, uy = u / (s + 1e-9), v / (s + 1e-9)
+                hx, hy = ux * length / 2, uy * length / 2
+                segments.append(
+                    f'<path class="q{bucket}" d="M{x - hx:.1f} {y - hy:.1f}'
+                    f'l{2 * hx:.1f} {2 * hy:.1f}"/>'
+                )
+            x += STEP
+        y += STEP
+
+    return "".join(segments), len(segments)
 
 
 def build(theme: Theme) -> str:
     t = theme
-    speed, throttle = lap_channels()
+    field_svg, _ = quiver(t)
 
-    d_speed = to_path(speed, PLOT["x0"], PLOT["x1"], PLOT["y0"], PLOT["y1"])
-    d_throttle = to_path(throttle, PLOT["x0"], PLOT["x1"],
-                         THROTTLE_BAND["y0"], THROTTLE_BAND["y1"], step=True)
-    len_speed = path_length(d_speed)
-    len_throttle = path_length(d_throttle)
-
-    # plot grid: vertical hairlines every 8 samples' worth of width
-    grid = []
-    cols = 24
-    for i in range(cols + 1):
-        x = PLOT["x0"] + (PLOT["x1"] - PLOT["x0"]) * i / cols
-        grid.append(
-            f'<line x1="{x:.1f}" y1="{PLOT["y0"] - 10:.0f}" '
-            f'x2="{x:.1f}" y2="{THROTTLE_BAND["y1"] + 8:.0f}" '
-            f'stroke="{t.ink_faint}" stroke-width="1" opacity="{0.9 if i % 6 == 0 else 0.45}"/>'
+    streams = []
+    for i, (sx, sy) in enumerate(STREAM_SEEDS):
+        pts = streamline(sx, sy, 260, 6.0)
+        if len(pts) < 12:
+            continue
+        length = path_length(pts)
+        streams.append(
+            f'<path class="sl" d="{polyline(pts)}" '
+            f'style="stroke-dasharray:{length * 0.16:.0f} {length * 0.84:.0f};'
+            f'animation-duration:{15 + i * 4}s;animation-delay:-{i * 3}s"/>'
         )
-    grid_svg = "\n      ".join(grid)
+    streams_svg = "".join(streams)
 
-    # ambient flow lines behind the wordmark
-    flow = []
-    for i, (y, dash, dur, op) in enumerate([
-        (62, "160 900", "17s", 0.55),
-        (80, "90 520", "23s", 0.30),
-        (98, "240 760", "19s", 0.42),
-    ]):
-        flow.append(
-            f'<line class="flow f{i}" x1="0" y1="{y}" x2="{W}" y2="{y}" '
-            f'stroke="{t.accent}" stroke-width="1" stroke-dasharray="{dash}" '
-            f'opacity="{op}" style="animation-duration:{dur}"/>'
-        )
-    flow_svg = "\n      ".join(flow)
+    panel_w, panel_h = PX1 - PX0, PY1 - PY0
+    panel_perim = 2 * (panel_w + panel_h)
 
     css = f"""
-    .flow {{ animation: flow linear infinite; }}
-    @keyframes flow {{ from {{ stroke-dashoffset: 1100; }} to {{ stroke-dashoffset: 0; }} }}
-
-    .trace-speed {{
-      stroke-dasharray: {len_speed:.0f};
-      stroke-dashoffset: 0;
-      animation: draw 2.6s cubic-bezier(.22,.61,.36,1) .35s backwards;
+    .q0{{stroke:{t.field[0]}}}.q1{{stroke:{t.field[1]}}}
+    .q2{{stroke:{t.field[2]}}}.q3{{stroke:{t.field[3]}}}
+    .sl{{fill:none;stroke:{t.accent};stroke-width:1.2;stroke-opacity:.5;
+      stroke-linecap:round;stroke-dashoffset:0;
+      animation-name:drift;animation-timing-function:linear;
+      animation-iteration-count:infinite}}
+    @keyframes drift{{from{{stroke-dashoffset:0}}to{{stroke-dashoffset:-2400}}}}
+    .edge{{stroke-dasharray:{panel_perim:.0f};stroke-dashoffset:0;
+      animation:edge 1.8s cubic-bezier(.16,1,.3,1) .1s backwards}}
+    @keyframes edge{{from{{stroke-dashoffset:{panel_perim:.0f}}}}}
+    .up{{animation:up .8s cubic-bezier(.16,1,.3,1) backwards}}
+    .u1{{animation-delay:.30s}}.u2{{animation-delay:.42s}}
+    .u3{{animation-delay:.54s}}.u4{{animation-delay:.66s}}
+    @keyframes up{{from{{opacity:0;transform:translateY(7px)}}}}
+    @media (prefers-reduced-motion:reduce){{
+      .sl,.edge,.up{{animation:none}}
     }}
-    .trace-throttle {{
-      stroke-dasharray: {len_throttle:.0f};
-      stroke-dashoffset: 0;
-      animation: draw 2.6s cubic-bezier(.22,.61,.36,1) .5s backwards;
-    }}
-    @keyframes draw {{ from {{ stroke-dashoffset: {max(len_speed, len_throttle):.0f}; }} }}
-
-    .scan {{ animation: scan 7s cubic-bezier(.45,0,.55,1) 2.4s infinite; }}
-    @keyframes scan {{
-      0%   {{ transform: translateX(0);   opacity: 0; }}
-      6%   {{ opacity: 1; }}
-      92%  {{ opacity: 1; }}
-      100% {{ transform: translateX({PLOT['x1'] - PLOT['x0']:.0f}px); opacity: 0; }}
-    }}
-
-    .pulse {{ animation: pulse 2.4s ease-in-out infinite; transform-origin: center; }}
-    @keyframes pulse {{
-      0%, 100% {{ opacity: .25; }}
-      50%      {{ opacity: 1; }}
-    }}
-
-    .rule {{ transform-origin: {W/2}px 0; animation: rule 1.4s cubic-bezier(.16,1,.3,1) .25s backwards; }}
-    @keyframes rule {{ from {{ transform: scaleX(0); }} }}
-
-    .rise {{ animation: rise .9s cubic-bezier(.16,1,.3,1) backwards; }}
-    .d1 {{ animation-delay: .05s; }}
-    .d2 {{ animation-delay: .18s; }}
-    .d3 {{ animation-delay: .30s; }}
-    .d4 {{ animation-delay: .42s; }}
-    @keyframes rise {{ from {{ opacity: 0; transform: translateY(10px); }} }}
-
-    .sweep {{ animation: sweep 9s ease-in-out 1.6s infinite; }}
-    @keyframes sweep {{
-      0%, 62%  {{ transform: translateX(-{W}px); }}
-      100%     {{ transform: translateX({W}px); }}
-    }}
-
-    @media (prefers-reduced-motion: reduce) {{
-      .flow, .trace-speed, .trace-throttle, .scan,
-      .pulse, .rule, .rise, .sweep {{ animation: none; }}
-      .scan {{ opacity: 0; }}
-      .sweep {{ opacity: 0; }}
-    }}
-    """
-
-    # A trailing letter-space is appended after the final glyph, which drags
-    # a centred string right by half a step. Pull it back.
-    name_size, name_track = 68, 18
-    name_dx = -name_track / 2
+    """.strip()
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W} {H}"
      width="{W}" height="{H}" role="img"
-     aria-label="{NAME} — machine learning, computational physics, molecular intelligence, CFD">
-  <title>{NAME} · {TAGLINE}</title>
+     aria-label="{NAME} — machine learning, computational physics, molecular intelligence">
+  <title>{NAME} / {TAGLINE}</title>
+  <desc>A quiver plot of a turbulent velocity field with streamlines traced through it.</desc>
+  <defs><style>{css}</style></defs>
 
-  <defs>
-    <linearGradient id="bg-{t.key}" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="{t.bg_top}"/>
-      <stop offset="1" stop-color="{t.bg_bottom}"/>
-    </linearGradient>
+  <rect width="{W}" height="{H}" fill="{t.bg}"/>
 
-    <radialGradient id="glow-{t.key}" cx="0.5" cy="0.42" r="0.62">
-      <stop offset="0" stop-color="{t.accent}" stop-opacity="0.12"/>
-      <stop offset="1" stop-color="{t.accent}" stop-opacity="0"/>
-    </radialGradient>
+  <g stroke-width="1.1" stroke-linecap="round" fill="none">{field_svg}</g>
+  <g>{streams_svg}</g>
 
-    <linearGradient id="fade-{t.key}" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0.00" stop-color="#000"/>
-      <stop offset="0.14" stop-color="#fff"/>
-      <stop offset="0.86" stop-color="#fff"/>
-      <stop offset="1.00" stop-color="#000"/>
-    </linearGradient>
-    <mask id="edge-{t.key}">
-      <rect width="{W}" height="{H}" fill="url(#fade-{t.key})"/>
-    </mask>
+  <rect x="{PX0}" y="{PY0}" width="{panel_w}" height="{panel_h}"
+        fill="{t.panel}" fill-opacity="0.93"/>
+  <rect class="edge" x="{PX0}" y="{PY0}" width="{panel_w}" height="{panel_h}"
+        fill="none" stroke="{t.panel_edge}" stroke-width="1"/>
 
-    <linearGradient id="shine-{t.key}" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0.35" stop-color="{t.shine}" stop-opacity="0"/>
-      <stop offset="0.50" stop-color="{t.shine}" stop-opacity="0.85"/>
-      <stop offset="0.65" stop-color="{t.shine}" stop-opacity="0"/>
-    </linearGradient>
-
-    <linearGradient id="trace-{t.key}" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="{t.accent}"/>
-      <stop offset="0.55" stop-color="{t.accent_hi}"/>
-      <stop offset="1" stop-color="{t.accent}"/>
-    </linearGradient>
-
-    <linearGradient id="bar-{t.key}" x1="0" y1="0" x2="1" y2="0">
-      <stop offset="0" stop-color="{t.accent}" stop-opacity="0"/>
-      <stop offset="0.5" stop-color="{t.accent}"/>
-      <stop offset="1" stop-color="{t.accent}" stop-opacity="0"/>
-    </linearGradient>
-
-    <clipPath id="name-clip-{t.key}">
-      <text x="{W/2 + name_dx}" y="152" text-anchor="middle"
-            font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-            font-size="{name_size}" font-weight="700"
-            letter-spacing="{name_track}">{NAME}</text>
-    </clipPath>
-
-    <style>{css}</style>
-  </defs>
-
-  <rect width="{W}" height="{H}" fill="url(#bg-{t.key})"/>
-  <rect width="{W}" height="{H}" fill="url(#glow-{t.key})"/>
-
-  <!-- ambient data flow -->
-  <g mask="url(#edge-{t.key})" opacity="0.5">
-      {flow_svg}
-  </g>
-
-  <!-- top hairline + HUD -->
-  <rect x="0" y="0" width="{W}" height="2" fill="{t.accent}" opacity="0.9"/>
-  <g class="rise d1" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace"
-     font-size="11" letter-spacing="2.4">
-    <circle class="pulse" cx="96" cy="44" r="3.5" fill="{t.accent}"/>
-    <text x="110" y="48" fill="{t.ink_soft}">{STATUS}</text>
-    <text x="{W - 96}" y="48" fill="{t.ink_soft}" text-anchor="end">{HANDLE}</text>
-  </g>
-
-  <!-- wordmark -->
-  <g class="rise d2">
-    <text x="{W/2 + name_dx}" y="152" text-anchor="middle" fill="{t.ink}"
-          font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-          font-size="{name_size}" font-weight="700"
-          letter-spacing="{name_track}">{NAME}</text>
-  </g>
-  <g clip-path="url(#name-clip-{t.key})">
-    <rect class="sweep" x="-{W}" y="90" width="{W}" height="80" fill="url(#shine-{t.key})"/>
-  </g>
-
-  <!-- rule -->
-  <rect class="rule" x="{W/2 - 210}" y="177" width="420" height="1" fill="{t.ink_faint}"/>
-  <rect class="rule" x="{W/2 - 30}" y="176.5" width="60" height="2" fill="{t.accent}"/>
-
-  <!-- disciplines -->
-  <text class="rise d3" x="{W/2}" y="206" text-anchor="middle" fill="{t.ink_soft}"
-        font-family="'Helvetica Neue', Helvetica, Arial, sans-serif"
-        font-size="13" font-weight="500" letter-spacing="4.2">{DISCIPLINES}</text>
-
-  <text class="rise d3" x="{W/2}" y="234" text-anchor="middle" fill="{t.accent}"
-        font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace"
-        font-size="12.5" letter-spacing="2">{TAGLINE}</text>
-
-  <!-- telemetry plot -->
-  <g class="rise d4">
-    <g mask="url(#edge-{t.key})" opacity="0.85">
-      {grid_svg}
+  <g font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace">
+    <g class="up u1" font-size="11" letter-spacing="1.6" fill="{t.ink_faint}">
+      <text x="{PX0 + 24}" y="{PY0 + 30}">{EYEBROW}</text>
+      <text x="{PX1 - 24}" y="{PY0 + 30}" text-anchor="end">{STAMP}</text>
     </g>
 
-    <g font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace"
-       font-size="9.5" letter-spacing="1.6" fill="{t.ink_soft}" text-anchor="end">
-      <text x="{LABEL_X}" y="{(PLOT['y0'] + PLOT['y1']) / 2 + 3.5:.0f}" opacity="0.8">SPD</text>
-      <text x="{LABEL_X}" y="{(THROTTLE_BAND['y0'] + THROTTLE_BAND['y1']) / 2 + 3.5:.0f}"
-            opacity="0.5">THR</text>
-    </g>
+    <text class="up u2" x="{(PX0 + PX1) / 2 + 5.5}" y="{PY0 + 104}" text-anchor="middle"
+          fill="{t.ink}" font-size="46" font-weight="500"
+          letter-spacing="11">{NAME}</text>
 
-    <path class="trace-throttle" d="{d_throttle}" fill="none" stroke="{t.trace_2}"
-          stroke-width="1.2" stroke-opacity="0.6" stroke-linejoin="miter"/>
-    <path class="trace-speed" d="{d_speed}" fill="none" stroke="url(#trace-{t.key})"
-          stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text class="up u3" x="{(PX0 + PX1) / 2 + 1.7}" y="{PY0 + 140}" text-anchor="middle"
+          fill="{t.ink_soft}" font-size="12.5" letter-spacing="3.4">{DISCIPLINES}</text>
 
-    <g class="scan" transform="translate(0,0)">
-      <line x1="{PLOT['x0']}" y1="{PLOT['y0'] - 10:.0f}"
-            x2="{PLOT['x0']}" y2="{THROTTLE_BAND['y1'] + 8:.0f}"
-            stroke="{t.accent_hi}" stroke-width="1" opacity="0.55"/>
-      <circle cx="{PLOT['x0']}" cy="{PLOT['y0'] - 14:.0f}" r="2.5" fill="{t.accent_hi}"/>
-    </g>
+    <text class="up u4" x="{(PX0 + PX1) / 2 + 0.8}" y="{PY0 + 170}" text-anchor="middle"
+          fill="{t.ink_faint}" font-size="11.5" letter-spacing="1.6">{TAGLINE}</text>
   </g>
-
-  <!-- bottom accent -->
-  <rect x="0" y="{H - 2}" width="{W}" height="2" fill="url(#bar-{t.key})" opacity="0.8"/>
 </svg>
 """
 

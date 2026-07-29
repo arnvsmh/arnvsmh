@@ -3,88 +3,69 @@
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="assets/banner-light.svg">
-  <img alt="Arnav Simha — machine learning, computational physics, molecular intelligence, CFD" src="assets/banner-dark.svg" width="100%">
-</picture>
-
-<br>
-
-<a href="https://x.com/arnvsmh"><img alt="X" src="https://img.shields.io/badge/X-0A0E10?style=flat-square&logo=x&logoColor=00D2BE"></a>
-<a href="https://www.linkedin.com/in/arnav-simha/"><img alt="LinkedIn" src="https://img.shields.io/badge/LinkedIn-0A0E10?style=flat-square&logo=linkedin&logoColor=00D2BE"></a>
-<a href="https://github.com/arnvsmh"><img alt="GitHub" src="https://img.shields.io/badge/GitHub-0A0E10?style=flat-square&logo=github&logoColor=00D2BE"></a>
-
-</div>
-
-<br>
-
-I build machine learning systems for scientific computing — models that have to respect
-physics, not just fit data. Most of my work sits where numerical simulation is too slow and
-pure deep learning is too unconstrained: turbulence reconstruction, physics-informed
-networks, and molecular reasoning.
-
-Currently: writing up **LIFT-550**, and building **[Ryniant](https://ryniant.com)** — AI
-retrosynthesis planning for pharmaceutical CROs.
-
-<br>
-
-## Work
-
-| | |
-|---|---|
-| **LIFT-550** | Physics-informed super-resolution for turbulence fields. First-author paper; the result is that the *training objective*, not the architecture, governs how much fine scale a model recovers. In submission — SC26 AI4S Workshop (IEEE). |
-| **Ryniant** | Retrosynthesis route planning for pharma CROs: search over reaction graphs, GNN success scoring, and an equipment/inventory feasibility layer on top. |
-| **Scientific ML** | Reproducible implementations and experiments from the above. Releasing as the papers clear. |
-
-> Public repositories are being prepared for release.
-
-<br>
-
-## Focus
-
-- **Physics-informed neural networks** — embedding conservation laws and boundary conditions into the loss
-- **Turbulence reconstruction** — super-resolution and spectral fidelity across scales
-- **Molecular intelligence** — retrosynthesis search, reaction prediction, GNNs over chemical graphs
-- **High-performance computing** — CUDA, mixed precision, and getting training throughput out of real hardware
-
-<br>
-
-## Stack
-
-| | |
-|---|---|
-| **Languages** | Python · C++ · CUDA · SQL |
-| **ML** | PyTorch · NumPy · SciPy · scikit-learn |
-| **Scientific** | matplotlib · pandas · RDKit · OpenFOAM |
-| **Infrastructure** | Docker · Git · Linux · GCP |
-
-<br>
-
-## Activity
-
-<div align="center">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8&icon_color=00D2BE&rank_icon=github">
-  <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=009D8C&text_color=4E585C&icon_color=009D8C&rank_icon=github">
-  <img alt="GitHub stats" height="165" src="https://github-readme-stats.vercel.app/api?username=arnvsmh&show_icons=true&hide_border=true&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8&icon_color=00D2BE&rank_icon=github">
-</picture>
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&langs_count=8&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8">
-  <source media="(prefers-color-scheme: light)" srcset="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&langs_count=8&bg_color=00000000&title_color=009D8C&text_color=4E585C">
-  <img alt="Top languages" height="165" src="https://github-readme-stats.vercel.app/api/top-langs/?username=arnvsmh&layout=compact&hide_border=true&langs_count=8&bg_color=00000000&title_color=00D2BE&text_color=9AA4A8">
+  <img alt="Arnav Simha — machine learning, computational physics, molecular intelligence" src="assets/banner-dark.svg" width="100%">
 </picture>
 
 <br><br>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/arnvsmh/arnvsmh/output/snake-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/arnvsmh/arnvsmh/output/snake.svg">
-  <img alt="Contribution graph" src="https://raw.githubusercontent.com/arnvsmh/arnvsmh/output/snake-dark.svg">
-</picture>
+I build machine learning systems for scientific computing — models that have to respect physics, not just fit data.
+
+Currently: LIFT-550 · Ryniant · retrosynthesis and turbulence
+
+<a href="https://x.com/arnvsmh">X</a> · <a href="https://www.linkedin.com/in/arnvsmh">LinkedIn</a> · <a href="mailto:arnav@ryniant.com">Email</a>
 
 </div>
 
-<br>
+## Selected work
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### LIFT-550
+
+Physics-informed super-resolution for wall-bounded turbulence. The finding is that the *training objective*, not the architecture, governs how much fine-scale content a model recovers — changing the loss moves reconstruction across a regime boundary that architecture changes don't cross.
+
+First-author · In submission, SC26 AI4S Workshop (IEEE)
+
+</td>
+<td width="50%" valign="top">
+
+### Ryniant
+
+Retrosynthesis planning for pharmaceutical CROs. Route search over reaction graphs with GNN success scoring, layered over equipment feasibility, inventory, and quoting — so the routes a chemist gets back are ones their lab can actually run.
+
+Founder · <a href="https://ryniant.com">ryniant.com</a>
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### YASUNet v2
+
+The reconstruction model behind LIFT-550. Trained against multiple baselines with per-epoch component logging and band-resolved spectral error, so a gain in aggregate metrics can be traced to the wavenumber band it came from.
+
+PyTorch · Turbulence · Spectral evaluation
+
+</td>
+<td width="50%" valign="top">
+
+### Route Explorer
+
+Radial visualization for synthesis routes: a bipartite molecule/reaction graph laid out from its own topology rather than fixed depth, so branch structure stays readable as routes get deep.
+
+TypeScript · Graph layout
+
+</td>
+</tr>
+</table>
+
+## Systems
+
+Python · C++ · CUDA · PyTorch · NumPy · RDKit · OpenFOAM · Docker · GCP
 
 <div align="center">
-<sub><code>research → simulation → discovery</code></sub>
+<br>
+<sub><code>research -> simulation -> discovery</code></sub>
 </div>
