@@ -39,7 +39,7 @@ Retrosynthesis planning for pharmaceutical CROs. Route search over reaction grap
 
 Includes a radial route explorer that lays out the bipartite molecule/reaction graph from its own topology, keeping branch structure readable as routes get deep.
 
-Founder · <a href="https://ryniant.com">ryniant.com</a>
+Co-Founder · <a href="https://ryniant.com">ryniant.com</a>
 
 </td>
 </tr>
