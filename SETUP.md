@@ -5,7 +5,7 @@ README.md                      the profile
 assets/banner-dark.svg         generated — do not hand-edit
 assets/banner-light.svg        generated — do not hand-edit
 tools/build_banner.py          the generator (edit this instead)
-tools/test_banner.py           30 tests, stdlib only
+tools/test_banner.py           37 tests, stdlib only
 tools/preview.html             open in a browser to check both variants
 .github/workflows/banner.yml   rebuilds + tests on push
 ```
@@ -71,6 +71,38 @@ layouts scored on two properties, both of which are now tests:
 - **Even coverage.** No row of the canvas may average below 55% of the
   fastest row, or you get a dead band where the field fades out.
 
+## The sway
+
+The field sways as one motion, not five hundred independent jitters. With no
+scripting available, that meant bucketing: every segment gets an **amplitude**
+class and a **phase** class, and the CSS carries one keyframe set per bucket
+instead of one per segment.
+
+Amplitude comes from local vorticity — a segment sitting inside a vortex works
+harder than one in the free stream, which is why the motion looks like it's
+being driven by the flow rather than applied to it. Phase comes from a plane
+wave crossing the canvas at 24 degrees with a 380px wavelength, so a crest
+visibly travels through the field. Both distributions are tested: a starved
+phase bucket shows up as a gap in the crest, and if amplitude stops correlating
+with curl, `test_amplitude_tracks_vorticity` fails.
+
+The rotation depends on exactly one CSS feature: `transform-box: fill-box`.
+Without it the pivot falls back to the viewBox origin and the segments fly
+across the canvas instead of turning in place. There's a test asserting it's
+present, because it is not an obvious line to delete.
+
+Keyframes run from -A to +A, so the resting midpoint is the true velocity
+direction — which is what you see with reduced motion enabled.
+
+Tuning knobs, all at the top of the file:
+
+```python
+AMP_BUCKETS, PHASE_BUCKETS = 4, 12
+AMP_DEGREES = (3.5, 6.5, 10.0, 15.0)   # sway size per bucket
+AMP_SECONDS = (9.0, 7.8, 6.6, 5.6)     # slower where the sway is gentler
+WAVE_ANGLE, WAVELENGTH, WAVE_PERIOD = 24.0, 380.0, 8.0
+```
+
 Three constraints drove the technical decisions:
 
 **No external resources.** GitHub serves README images through its camo proxy
@@ -127,4 +159,6 @@ and hands the browser the right file.
 | Banner is a broken image icon | Path is wrong, or `assets/` didn't copy. `ls assets/` should show two SVGs. |
 | Banner renders but doesn't animate | Reduced motion is on at the OS level. That's the intended fallback. |
 | Field looks striped | You changed `SHEAR` or `VORTICES`. Run the tests — `test_angles_are_isotropic` is exactly this failure. |
+| Segments fly around instead of pivoting | `transform-box: fill-box` got dropped from the CSS. |
+| Sway looks like jitter, not a wave | `WAVELENGTH` is too short relative to `STEP`, or a phase bucket starved. |
 | CI fails on "assets are stale" | You edited `assets/*.svg` directly. Edit the generator and rebuild. |

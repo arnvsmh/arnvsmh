@@ -24,9 +24,11 @@ Currently: LIFT-550 · Ryniant · retrosynthesis and turbulence
 
 ### LIFT-550
 
-Physics-informed super-resolution for wall-bounded turbulence. The finding is that the *training objective*, not the architecture, governs how much fine-scale content a model recovers — changing the loss moves reconstruction across a regime boundary that architecture changes don't cross.
+Physics-informed super-resolution for wall-bounded turbulence. The finding: the *training objective*, not the architecture, governs how much fine-scale content a model recovers — changing the loss moves reconstruction across a regime boundary that architecture changes don't cross.
 
-First-author · In submission, SC26 AI4S Workshop (IEEE)
+Evaluated against multiple baselines with band-resolved spectral error, so a gain in aggregate metrics can be traced to the wavenumber band it came from.
+
+First-author · In submission, SC26 AI4S Workshop (IEEE) · PyTorch
 
 </td>
 <td width="50%" valign="top">
@@ -35,27 +37,9 @@ First-author · In submission, SC26 AI4S Workshop (IEEE)
 
 Retrosynthesis planning for pharmaceutical CROs. Route search over reaction graphs with GNN success scoring, layered over equipment feasibility, inventory, and quoting — so the routes a chemist gets back are ones their lab can actually run.
 
+Includes a radial route explorer that lays out the bipartite molecule/reaction graph from its own topology, keeping branch structure readable as routes get deep.
+
 Founder · <a href="https://ryniant.com">ryniant.com</a>
-
-</td>
-</tr>
-<tr>
-<td width="50%" valign="top">
-
-### YASUNet v2
-
-The reconstruction model behind LIFT-550. Trained against multiple baselines with per-epoch component logging and band-resolved spectral error, so a gain in aggregate metrics can be traced to the wavenumber band it came from.
-
-PyTorch · Turbulence · Spectral evaluation
-
-</td>
-<td width="50%" valign="top">
-
-### Route Explorer
-
-Radial visualization for synthesis routes: a bipartite molecule/reaction graph laid out from its own topology rather than fixed depth, so branch structure stays readable as routes get deep.
-
-TypeScript · Graph layout
 
 </td>
 </tr>

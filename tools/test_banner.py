@@ -130,6 +130,86 @@ class TestField(unittest.TestCase):
             self.assertFalse(inside, f"segment at ({x}, {y}) is hidden by the panel")
 
 
+class TestSway(unittest.TestCase):
+    """
+    The field sways. With no scripting available, that means bucketing every
+    segment into an amplitude class and a phase class — so the buckets have
+    to be populated sensibly or the motion reads as jitter.
+    """
+
+    def setUp(self):
+        self.body, _ = bb.quiver(bb.DARK)
+        self.classes = re.findall(r'class="q(\d) w a(\d) p(\d+)"', self.body)
+        self.assertTrue(self.classes, "no segments carry sway classes")
+
+    def test_every_segment_sways(self):
+        n_paths = self.body.count("<path")
+        self.assertEqual(len(self.classes), n_paths,
+                         "some segments are missing amplitude or phase classes")
+
+    def test_phase_buckets_are_evenly_filled(self):
+        """
+        A traveling wave only reads as one motion if every phase of it is
+        represented. A starved bucket shows up as a gap in the crest.
+        """
+        hist = collections.Counter(int(p) for _, _, p in self.classes)
+        self.assertEqual(len(hist), bb.PHASE_BUCKETS, "a phase bucket is empty")
+        ratio = min(hist.values()) / max(hist.values())
+        self.assertGreater(ratio, 0.5, f"phase distribution is lumpy ({ratio:.2f})")
+
+    def test_every_amplitude_bucket_is_used(self):
+        hist = collections.Counter(int(a) for _, a, _ in self.classes)
+        self.assertEqual(len(hist), bb.AMP_BUCKETS)
+        self.assertGreater(min(hist.values()), 20,
+                           "an amplitude bucket is nearly unused")
+
+    def test_amplitude_tracks_vorticity(self):
+        """
+        Segments sitting in a vortex should sway harder than free-stream
+        segments. Compare mean curl in the top bucket against the bottom.
+        """
+        by_bucket = collections.defaultdict(list)
+        coords = re.findall(
+            r'class="q\d w a(\d) p\d+" d="M(-?[\d.]+) (-?[\d.]+)l(-?[\d.]+) (-?[\d.]+)',
+            self.body)
+        for amp, mx, my, dx, dy in coords:
+            cx = float(mx) + float(dx) / 2
+            cy = float(my) + float(dy) / 2
+            by_bucket[int(amp)].append(abs(bb.vorticity(cx, cy)))
+        lowest = sum(by_bucket[0]) / len(by_bucket[0])
+        highest = sum(by_bucket[bb.AMP_BUCKETS - 1]) / len(by_bucket[bb.AMP_BUCKETS - 1])
+        self.assertGreater(highest, lowest * 2,
+                           "amplitude isn't tracking local vorticity")
+
+    def test_rotation_pivots_on_the_segment(self):
+        """
+        Without transform-box:fill-box the rotation origin falls back to the
+        viewBox origin and the segments fly across the canvas instead of
+        pivoting in place. This is the one CSS feature the sway depends on.
+        """
+        for v in VARIANTS:
+            svg = read(v)
+            with self.subTest(variant=v):
+                self.assertIn("transform-box:fill-box", svg)
+                self.assertIn("transform-origin:center", svg)
+
+    def test_sway_rests_at_the_true_field_angle(self):
+        """
+        Keyframes run from -A to +A, so the midpoint — the resting state with
+        animation disabled — is the actual velocity direction.
+        """
+        for i, deg in enumerate(bb.AMP_DEGREES):
+            svg = read("dark")
+            self.assertIn(f"@keyframes k{i}{{from{{transform:rotate({-deg}deg)}}"
+                          f"to{{transform:rotate({deg}deg)}}}}", svg)
+
+    def test_sway_amplitudes_stay_subtle(self):
+        """Past ~20 degrees it stops reading as flow and starts reading as wind."""
+        self.assertEqual(len(bb.AMP_DEGREES), bb.AMP_BUCKETS)
+        self.assertLess(max(bb.AMP_DEGREES), 20.0)
+        self.assertEqual(list(bb.AMP_DEGREES), sorted(bb.AMP_DEGREES))
+
+
 class TestGeneratedSVGs(unittest.TestCase):
     """Every property below is a thing that has broken someone's README."""
 
@@ -216,6 +296,7 @@ class TestGeneratedSVGs(unittest.TestCase):
             svg = read(v)
             with self.subTest(variant=v):
                 self.assertRegex(svg, r"\.sl\{[^}]*stroke-dashoffset:0")
+                self.assertIn(".w,.sl,.edge,.up{animation:none}", svg.replace("\n","").replace("      ",""))
                 self.assertRegex(svg, r"\.edge\{[^}]*stroke-dashoffset:0")
 
     def test_themes_actually_differ(self):

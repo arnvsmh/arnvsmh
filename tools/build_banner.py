@@ -183,15 +183,52 @@ def path_length(pts: list[tuple[float, float]]) -> float:
 STEP = 24          # quiver grid spacing
 PANEL_PAD = 16.0   # segments this close to the panel are dropped
 
+# The sway. Amplitude is bucketed by local vorticity, phase by a plane wave
+# travelling across the canvas — two small class sets instead of 500 bespoke
+# animations, which is the only way to do this without a script.
+AMP_BUCKETS = 4
+PHASE_BUCKETS = 12
+AMP_DEGREES = (3.5, 6.5, 10.0, 15.0)
+AMP_SECONDS = (9.0, 7.8, 6.6, 5.6)
+WAVE_ANGLE = 24.0          # degrees; direction the wave travels
+WAVELENGTH = 380.0         # px between crests
+WAVE_PERIOD = 8.0          # s for one crest to pass a point
+WAVE_DX = math.cos(math.radians(WAVE_ANGLE))
+WAVE_DY = math.sin(math.radians(WAVE_ANGLE))
+
 STREAM_SEEDS = [
     (-20.0, 132.0), (-20.0, 264.0), (-20.0, 344.0),
     (240.0, 18.0), (620.0, 404.0), (900.0, 22.0),
 ]
 
 
+def vorticity(x: float, y: float, h: float = 6.0) -> float:
+    """Local curl, central-differenced. Drives how hard a segment sways."""
+    _, v1 = velocity(x + h, y)
+    _, v0 = velocity(x - h, y)
+    u1, _ = velocity(x, y + h)
+    u0, _ = velocity(x, y - h)
+    return (v1 - v0) / (2 * h) - (u1 - u0) / (2 * h)
+
+
+def curl_range(step: int) -> tuple[float, float]:
+    vals = []
+    y = step / 2
+    while y < H:
+        x = step / 2
+        while x < W:
+            vals.append(abs(vorticity(x, y)))
+            x += step
+        y += step
+    vals.sort()
+    return vals[len(vals) // 10], vals[len(vals) * 9 // 10]
+
+
 def quiver(theme: Theme) -> tuple[str, int]:
     lo, hi = speed_range(STEP * 2)
     span = max(hi - lo, 1e-6)
+    clo, chi = curl_range(STEP * 2)
+    cspan = max(chi - clo, 1e-6)
     segments: list[str] = []
 
     y = STEP / 2
@@ -204,13 +241,24 @@ def quiver(theme: Theme) -> tuple[str, int]:
                 u, v = velocity(x, y)
                 s = math.hypot(u, v)
                 frac = min(1.0, max(0.0, (s - lo) / span))
-                bucket = min(3, int(frac * 4))
+                tone = min(3, int(frac * 4))
                 length = 8.0 + 8.0 * frac
+
+                # sway amplitude tracks local vorticity: segments sitting in
+                # a vortex work harder than segments in the free stream
+                cf = min(1.0, max(0.0, (abs(vorticity(x, y)) - clo) / cspan))
+                amp = min(AMP_BUCKETS - 1, int(cf * AMP_BUCKETS))
+
+                # phase from a plane wave crossing the canvas, so the field
+                # sways as one motion instead of each segment doing its own
+                phase = (x * WAVE_DX + y * WAVE_DY) / WAVELENGTH
+                ph = int(phase % 1.0 * PHASE_BUCKETS) % PHASE_BUCKETS
+
                 ux, uy = u / (s + 1e-9), v / (s + 1e-9)
                 hx, hy = ux * length / 2, uy * length / 2
                 segments.append(
-                    f'<path class="q{bucket}" d="M{x - hx:.1f} {y - hy:.1f}'
-                    f'l{2 * hx:.1f} {2 * hy:.1f}"/>'
+                    f'<path class="q{tone} w a{amp} p{ph}" '
+                    f'd="M{x - hx:.1f} {y - hy:.1f}l{2 * hx:.1f} {2 * hy:.1f}"/>'
                 )
             x += STEP
         y += STEP
@@ -238,9 +286,26 @@ def build(theme: Theme) -> str:
     panel_w, panel_h = PX1 - PX0, PY1 - PY0
     panel_perim = 2 * (panel_w + panel_h)
 
+    sway = "".join(
+        f".a{i}{{animation-duration:{AMP_SECONDS[i]}s}}"
+        f"@keyframes k{i}{{from{{transform:rotate({-AMP_DEGREES[i]}deg)}}"
+        f"to{{transform:rotate({AMP_DEGREES[i]}deg)}}}}"
+        f".a{i}{{animation-name:k{i}}}"
+        for i in range(AMP_BUCKETS)
+    )
+    phases = "".join(
+        f".p{i}{{animation-delay:-{WAVE_PERIOD * i / PHASE_BUCKETS:.2f}s}}"
+        for i in range(PHASE_BUCKETS)
+    )
+
     css = f"""
     .q0{{stroke:{t.field[0]}}}.q1{{stroke:{t.field[1]}}}
     .q2{{stroke:{t.field[2]}}}.q3{{stroke:{t.field[3]}}}
+    .w{{transform-box:fill-box;transform-origin:center;
+      animation-timing-function:cubic-bezier(.45,0,.55,1);
+      animation-iteration-count:infinite;animation-direction:alternate}}
+    {sway}
+    {phases}
     .sl{{fill:none;stroke:{t.accent};stroke-width:1.2;stroke-opacity:.5;
       stroke-linecap:round;stroke-dashoffset:0;
       animation-name:drift;animation-timing-function:linear;
@@ -254,7 +319,7 @@ def build(theme: Theme) -> str:
     .u3{{animation-delay:.54s}}.u4{{animation-delay:.66s}}
     @keyframes up{{from{{opacity:0;transform:translateY(7px)}}}}
     @media (prefers-reduced-motion:reduce){{
-      .sl,.edge,.up{{animation:none}}
+      .w,.sl,.edge,.up{{animation:none}}
     }}
     """.strip()
 
