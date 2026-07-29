@@ -8,7 +8,7 @@
 
 <br><br>
 
-I build machine learning systems for scientific computing — models that have to respect physics, not just fit data.
+Turbulence and molecules, mostly.
 
 Currently: LIFT-550 · Ryniant · retrosynthesis and turbulence
 
@@ -35,7 +35,7 @@ First-author · In submission, SC26 AI4S Workshop (IEEE) · PyTorch
 
 ### Ryniant
 
-Retrosynthesis planning for pharmaceutical CROs. Route search over reaction graphs with GNN success scoring, layered over equipment feasibility, inventory, and quoting — so the routes a chemist gets back are ones their lab can actually run.
+Retrosynthesis planning for pharmaceutical CROs. Route search over reaction graphs with GNN success scoring, layered over equipment feasibility, inventory, and quoting - so the routes a chemist gets back are ones their lab can actually run.
 
 Includes a radial route explorer that lays out the bipartite molecule/reaction graph from its own topology, keeping branch structure readable as routes get deep.
 
