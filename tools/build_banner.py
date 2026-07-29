@@ -188,11 +188,11 @@ PANEL_PAD = 16.0   # segments this close to the panel are dropped
 # animations, which is the only way to do this without a script.
 AMP_BUCKETS = 4
 PHASE_BUCKETS = 12
-AMP_DEGREES = (3.5, 6.5, 10.0, 15.0)
-AMP_SECONDS = (9.0, 7.8, 6.6, 5.6)
+AMP_DEGREES = (16.0, 24.0, 32.0, 42.0)
+AMP_SECONDS = (5.0, 4.4, 3.8, 3.2)
 WAVE_ANGLE = 24.0          # degrees; direction the wave travels
 WAVELENGTH = 380.0         # px between crests
-WAVE_PERIOD = 8.0          # s for one crest to pass a point
+WAVE_PERIOD = 4.4          # s for one crest to pass a point
 WAVE_DX = math.cos(math.radians(WAVE_ANGLE))
 WAVE_DY = math.sin(math.radians(WAVE_ANGLE))
 
@@ -242,7 +242,7 @@ def quiver(theme: Theme) -> tuple[str, int]:
                 s = math.hypot(u, v)
                 frac = min(1.0, max(0.0, (s - lo) / span))
                 tone = min(3, int(frac * 4))
-                length = 8.0 + 8.0 * frac
+                length = 12.0 + 12.0 * frac
 
                 # sway amplitude tracks local vorticity: segments sitting in
                 # a vortex work harder than segments in the free stream

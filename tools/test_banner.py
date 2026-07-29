@@ -203,12 +203,24 @@ class TestSway(unittest.TestCase):
             self.assertIn(f"@keyframes k{i}{{from{{transform:rotate({-deg}deg)}}"
                           f"to{{transform:rotate({deg}deg)}}}}", svg)
 
-    def test_sway_amplitudes_stay_subtle(self):
-        """Past ~20 degrees it stops reading as flow and starts reading as wind."""
-        self.assertEqual(len(bb.AMP_DEGREES), bb.AMP_BUCKETS)
-        self.assertLess(max(bb.AMP_DEGREES), 20.0)
-        self.assertEqual(list(bb.AMP_DEGREES), sorted(bb.AMP_DEGREES))
+    def test_sway_is_actually_visible(self):
+        """
+        What the eye sees is how far a segment's END travels, which is
+        length x sin(angle) — so a short segment turning a few degrees moves
+        a fraction of a pixel and reads as a static image.
+        """
+        for i, deg in enumerate(bb.AMP_DEGREES):
+            frac = i / max(bb.AMP_BUCKETS - 1, 1)
+            length = 12.0 + 12.0 * frac
+            travel = length * math.sin(math.radians(deg))
+            with self.subTest(bucket=i):
+                self.assertGreater(travel, 3.0,
+                    f"bucket {i}: {travel:.2f}px is below the threshold of noticing")
 
+    def test_sway_is_not_frantic(self):
+        self.assertLess(max(bb.AMP_DEGREES), 55.0)
+        self.assertGreater(min(bb.AMP_SECONDS), 2.0)
+        self.assertEqual(list(bb.AMP_DEGREES), sorted(bb.AMP_DEGREES))
 
 class TestGeneratedSVGs(unittest.TestCase):
     """Every property below is a thing that has broken someone's README."""
