@@ -22,7 +22,7 @@ Currently: LIFT-550 · Ryniant · retrosynthesis and turbulence
 <tr>
 <td width="50%" valign="top">
 
-### LIFT-550
+### Turbulence Super Resolution
 
 Physics-informed super-resolution for wall-bounded turbulence. The finding: the *training objective*, not the architecture, governs how much fine-scale content a model recovers - changing the loss moves reconstruction across a regime boundary that architecture changes don't cross.
 
