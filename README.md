@@ -12,7 +12,7 @@ Turbulence and molecules, mostly.
 
 Currently: LIFT-550 · Ryniant · retrosynthesis and turbulence
 
-<a href="https://x.com/arnvsmh">X</a> · <a href="https://www.linkedin.com/in/arnavsimha">LinkedIn</a> · <a href="mailto:arnavsimha@ryniant.com">Email</a>
+<a href="https://x.com/arnvsmh">X</a> · <a href="https://www.linkedin.com/in/arnav-simha">LinkedIn</a> · <a href="mailto:arnavsimha@ryniant.com">Email</a>
 
 </div>
 
